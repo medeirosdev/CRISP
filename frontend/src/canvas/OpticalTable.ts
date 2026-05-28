@@ -26,6 +26,7 @@ export class OpticalTable {
 
   private dragId: string | null = null
   private dragAnnotationId: string | null = null
+  private dragAnnotationOffset = { dx: 0, dy: 0 }
   private onMove?: (id: string, xMm: number, yMm: number) => void
   private onAnnotationMove?: (id: string, xMm: number, yMm: number) => void
   private onClick?: (id: string | null) => void
@@ -222,6 +223,10 @@ export class OpticalTable {
       const annId = this._findAnnotationAt(mm)
       if (annId) {
         this.dragAnnotationId = annId
+        const ann = this._lastAnnotations.find(a => a.id === annId)
+        this.dragAnnotationOffset = ann
+          ? { dx: mm.x - ann.x, dy: mm.y - ann.y }
+          : { dx: 0, dy: 0 }
         return
       }
       this._lastComponents = this._lastComponents ?? []
@@ -251,7 +256,11 @@ export class OpticalTable {
       }
       if (this.dragAnnotationId) {
         const mm = this.screenToMm(e.clientX, e.clientY)
-        this.onAnnotationMove?.(this.dragAnnotationId, mm.x, mm.y)
+        this.onAnnotationMove?.(
+          this.dragAnnotationId,
+          mm.x - this.dragAnnotationOffset.dx,
+          mm.y - this.dragAnnotationOffset.dy,
+        )
         return
       }
       if (this.dragId) {
@@ -294,13 +303,24 @@ export class OpticalTable {
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault()
       const factor = e.deltaY < 0 ? 1.1 : 0.9
+      const nextScale = Math.max(0.08, Math.min(12, this.scale * factor))
+      const realFactor = nextScale / this.scale
       const rect = canvas.getBoundingClientRect()
       const cx = e.clientX - rect.left
       const cy = e.clientY - rect.top
-      this.offsetX = cx - (cx - this.offsetX) * factor
-      this.offsetY = cy - (cy - this.offsetY) * factor
-      this.scale *= factor
+      this.offsetX = cx - (cx - this.offsetX) * realFactor
+      this.offsetY = cy - (cy - this.offsetY) * realFactor
+      this.scale = nextScale
     }, { passive: false, signal })
+
+    // Limpa drag se mouse sair da janela (previne componente "fantasma")
+    window.addEventListener('blur', () => {
+      this.dragId = null
+      this.dragAnnotationId = null
+      this.isPanning = false
+      this.annotateArrowStart = null
+      this.annotateArrowCursor = null
+    }, { signal })
   }
 
   // Injected by App.tsx on each render

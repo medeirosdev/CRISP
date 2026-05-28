@@ -338,14 +338,21 @@ export class Renderer {
     ctx.setLineDash([])
     ctx.restore()
 
-    // Label largura: ACIMA do rect (lado oposto ao eixo óptico, afastado da amostra)
+    // Label largura: ACIMA do rect
     const fovTopX = sx - ax * (fovH / 2 + 5)
     const fovTopY = sy - ay * (fovH / 2 + 5)
-    this._pill(fovTopX, fovTopY, `${fovW.toFixed(2)} × ${fovH.toFixed(2)} mm  FOV`, 'rgba(74,144,217,0.95)', 2.7)
+    const fovLabel = cam
+      ? `${fovW.toFixed(2)} × ${fovH.toFixed(2)} mm  FOV`
+      : `${fovW.toFixed(2)} × ${fovH.toFixed(2)} mm  FOV (sensor padrão)`
+    this._pill(fovTopX, fovTopY, fovLabel, cam ? 'rgba(74,144,217,0.95)' : 'rgba(245,166,35,0.90)', 2.7)
 
-    // ── 3. Info de resolução e DoF: à DIREITA do rect ────────────
-    const resUm = 0.61 * 0.470 / na
-    const dofUm = 0.470 / (na * na)
+    // ── 3. Info de resolução e DoF: usa λ da fonte ou 470nm como fallback ──
+    const srcComp = components.find(c => c.type === 'source_led' || c.type === 'source_laser')
+    const lamUm = ((srcComp as import('../types/scene').Component)?.wavelengthsNm?.[1]
+      ?? (srcComp as import('../types/scene').Component)?.wavelengthsNm?.[0]
+      ?? 470) / 1000
+    const resUm = 0.61 * lamUm / na
+    const dofUm = lamUm / (na * na)
 
     const gap = fovW / 2 + 7
     const infoX = sx - px * gap   // lado oposto a px (direita)

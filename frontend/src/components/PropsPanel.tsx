@@ -13,14 +13,18 @@ export function PropsPanel() {
     const na  = comp.na ?? 0.3
     const mag = comp.magnification ?? 10
     const cam = scene.components.find(c => c.type === 'camera')
+    const src = scene.components.find(c => c.type === 'source_led' || c.type === 'source_laser')
+    const lam = (src?.wavelengthsNm?.[1] ?? src?.wavelengthsNm?.[0] ?? 470) / 1000  // µm
     const sW  = cam?.sensorWidthMm  ?? 6.4
     const sH  = cam?.sensorHeightMm ?? 4.8
     return {
-      resUm:  (0.61 * 0.470 / na).toFixed(3),
-      dofUm:  (0.470 / (na * na)).toFixed(2),
-      fovW:   (sW / mag).toFixed(3),
-      fovH:   (sH / mag).toFixed(3),
+      resUm:    (0.61 * lam / na).toFixed(3),
+      dofUm:    (lam / (na * na)).toFixed(2),
+      fovW:     (sW / mag).toFixed(3),
+      fovH:     (sH / mag).toFixed(3),
       naFactor: (na * na * 100).toFixed(1),
+      lamNm:    Math.round(lam * 1000),
+      camDefault: !cam,
     }
   })() : null
 
@@ -136,11 +140,17 @@ export function PropsPanel() {
               </div>
               {objMetrics && (
                 <div style={styles.derived}>
-                  <div style={styles.derivedTitle}>DERIVADO</div>
+                  <div style={styles.derivedTitle}>DERIVADO  <span style={{ color: '#555', fontWeight: 400 }}>@ λ={objMetrics.lamNm} nm</span></div>
                   <div style={styles.derivedRow}><span>Resolução (Rayleigh)</span><span>{objMetrics.resUm} µm</span></div>
                   <div style={styles.derivedRow}><span>Prof. de foco (DoF)</span><span>{objMetrics.dofUm} µm</span></div>
-                  <div style={styles.derivedRow}><span>FOV (sensor ÷ mag)</span><span>{objMetrics.fovW}×{objMetrics.fovH} mm</span></div>
+                  <div style={styles.derivedRow}>
+                    <span>FOV (sensor ÷ mag){objMetrics.camDefault ? ' *' : ''}</span>
+                    <span>{objMetrics.fovW}×{objMetrics.fovH} mm</span>
+                  </div>
                   <div style={styles.derivedRow}><span>Fator coleta (NA²)</span><span>{objMetrics.naFactor}%</span></div>
+                  {objMetrics.camDefault && (
+                    <div style={{ fontSize: 8, color: '#f5a623', marginTop: 2 }}>* sensor padrão 6.4×4.8 mm — adicione câmera para valor real</div>
+                  )}
                 </div>
               )}
             </>

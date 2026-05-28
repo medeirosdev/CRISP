@@ -4,21 +4,26 @@ import { sceneToBackend } from '../types/scene'
 
 type PhysicsCallback = (response: PhysicsResponse) => void
 type ErrorCallback = (error: string) => void
+export type WsStatus = 'connected' | 'disconnected' | 'connecting'
+type StatusCallback = (s: WsStatus) => void
 
 export class WebSocketClient {
   private ws: WebSocket | null = null
   private callbacks: PhysicsCallback[] = []
   private errorCallbacks: ErrorCallback[] = []
+  private statusCallbacks: StatusCallback[] = []
+  status: WsStatus = 'disconnected'
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private pendingRequest: object | null = null
   private url: string = 'ws://localhost:8000/ws'
 
   connect(url = 'ws://localhost:8000/ws'): void {
     this.url = url
+    this._setStatus('connecting')
     this.ws = new WebSocket(url)
 
     this.ws.onopen = () => {
-      console.log('[CRISP] Backend conectado')
+      this._setStatus('connected')
       if (this.pendingRequest) {
         this._send(this.pendingRequest)
         this.pendingRequest = null
@@ -35,13 +40,18 @@ export class WebSocketClient {
     }
 
     this.ws.onclose = () => {
-      console.warn('[CRISP] Backend desconectado — reconectando em 2s...')
+      this._setStatus('disconnected')
       setTimeout(() => this.connect(this.url), 2000)
     }
 
     this.ws.onerror = () => {
-      console.warn('[CRISP] Erro de WebSocket')
+      this._setStatus('disconnected')
     }
+  }
+
+  private _setStatus(s: WsStatus): void {
+    this.status = s
+    this.statusCallbacks.forEach(cb => cb(s))
   }
 
   requestUpdate(scene: Scene, params: {
@@ -73,6 +83,7 @@ export class WebSocketClient {
 
   onUpdate(cb: PhysicsCallback): void { this.callbacks.push(cb) }
   onError(cb: ErrorCallback): void { this.errorCallbacks.push(cb) }
+  onStatus(cb: StatusCallback): void { this.statusCallbacks.push(cb) }
 
   private _send(data: object): void {
     this.ws?.send(JSON.stringify(data))
