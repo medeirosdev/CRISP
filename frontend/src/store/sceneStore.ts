@@ -21,6 +21,7 @@ interface SceneStore {
   setSourceType: (t: 'led' | 'laser') => void
   setNIceTempK: (t: number) => void
   addAnnotation: (a: Annotation) => void
+  moveAnnotation: (id: string, x: number, y: number) => void
   removeLastAnnotation: () => void
   clearAnnotations: () => void
 }
@@ -71,6 +72,9 @@ export const useSceneStore = create<SceneStore>((set) => ({
   setSourceType: (sourceType) => set({ sourceType }),
   setNIceTempK: (nIceTempK) => set({ nIceTempK }),
   addAnnotation: (a) => set((s) => ({ annotations: [...s.annotations, a] })),
+  moveAnnotation: (id, x, y) => set((s) => ({
+    annotations: s.annotations.map(a => a.id === id ? { ...a, x, y, toX: a.toX !== undefined ? a.toX + (x - a.x) : undefined, toY: a.toY !== undefined ? a.toY + (y - a.y) : undefined } : a),
+  })),
   removeLastAnnotation: () => set((s) => ({ annotations: s.annotations.slice(0, -1) })),
   clearAnnotations: () => set({ annotations: [] }),
 }))

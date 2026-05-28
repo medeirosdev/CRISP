@@ -32,30 +32,19 @@ export function FloatingToolbar({
   lightTheme, onThemeToggle, onClearAnnotations, onUndoAnnotation,
 }: Props) {
   const annotating = activeTool === 'annotate-text' || activeTool === 'annotate-arrow'
-  const [pos, setPos] = useState({ x: 0, y: 0, initialized: false })
+  // null = usar CSS center; após drag do usuário vira posição absoluta
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const dragging = useRef(false)
   const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 })
   const ref = useRef<HTMLDivElement>(null)
 
-  // Center at bottom on first render
-  useEffect(() => {
-    if (pos.initialized || !ref.current) return
-    const w = ref.current.offsetWidth || 420
-    setPos({
-      x: window.innerWidth / 2 - w / 2,
-      y: window.innerHeight - 76,
-      initialized: true,
-    })
-  })
-
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragging.current) return
-      setPos(p => ({
-        ...p,
+      setPos({
         x: dragStart.current.px + e.clientX - dragStart.current.mx,
         y: dragStart.current.py + e.clientY - dragStart.current.my,
-      }))
+      })
     }
     const onUp = () => { dragging.current = false }
     window.addEventListener('mousemove', onMove)
@@ -84,8 +73,10 @@ export function FloatingToolbar({
   }, [onTool, onFitView, onDelete])
 
   const startDrag = (e: React.MouseEvent) => {
+    // captura posição atual do elemento para drag relativo
+    const rect = ref.current!.getBoundingClientRect()
     dragging.current = true
-    dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y }
+    dragStart.current = { mx: e.clientX, my: e.clientY, px: rect.left, py: rect.top }
     e.preventDefault()
   }
 
@@ -94,10 +85,10 @@ export function FloatingToolbar({
       ref={ref}
       style={{
         ...styles.bar,
-        left: pos.initialized ? pos.x : '50%',
-        top: pos.initialized ? pos.y : undefined,
-        bottom: pos.initialized ? undefined : 16,
-        transform: pos.initialized ? 'none' : 'translateX(-50%)',
+        // sem drag: CSS center-bottom absoluto; após drag: posição fixa pelo usuário
+        ...(pos
+          ? { left: pos.x, top: pos.y, bottom: undefined, transform: 'none' }
+          : { left: '50%', bottom: 16, top: undefined, transform: 'translateX(-50%)' }),
       }}
     >
       {/* Drag handle */}
@@ -193,29 +184,29 @@ export function FloatingToolbar({
 const styles: Record<string, React.CSSProperties> = {
   bar: {
     position: 'fixed',
-    display: 'flex', alignItems: 'center', gap: 2,
-    padding: '5px 8px',
-    background: 'rgba(18, 18, 35, 0.92)',
-    border: '1px solid #2a2a4a',
-    borderRadius: 10,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
-    backdropFilter: 'blur(8px)',
+    display: 'flex', alignItems: 'center', gap: 4,
+    padding: '8px 14px',
+    background: 'rgba(18, 18, 35, 0.96)',
+    border: '1px solid #3a3a5a',
+    borderRadius: 14,
+    boxShadow: '0 6px 32px rgba(0,0,0,0.6)',
+    backdropFilter: 'blur(10px)',
     userSelect: 'none',
     zIndex: 1000,
   },
   handle: {
-    cursor: 'grab', color: '#444', fontSize: 14,
-    padding: '0 4px', lineHeight: 1,
+    cursor: 'grab', color: '#555', fontSize: 18,
+    padding: '0 6px', lineHeight: 1,
   },
   separator: {
-    width: 1, height: 28, background: '#2a2a4a', margin: '0 4px', flexShrink: 0,
+    width: 1, height: 44, background: '#3a3a5a', margin: '0 6px', flexShrink: 0,
   },
   btn: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
     background: 'transparent', border: '1px solid transparent',
-    borderRadius: 6, cursor: 'pointer', padding: '3px 7px',
-    color: '#999', transition: 'background 0.1s, color 0.1s',
-    minWidth: 44,
+    borderRadius: 8, cursor: 'pointer', padding: '6px 12px',
+    color: '#bbb', transition: 'background 0.12s, color 0.12s',
+    minWidth: 58, gap: 2,
   },
   btnActive: {
     background: '#1a2a4a', border: '1px solid #4a90d9', color: '#7ec8f0',
@@ -224,9 +215,9 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#1a2a1a', border: '1px solid #33cc66', color: '#33cc66',
   },
   btnDanger: {
-    color: '#c0392b',
+    color: '#e05555',
   },
-  icon: { fontSize: 13, lineHeight: 1.2 },
-  label: { fontSize: 8, lineHeight: 1.3, whiteSpace: 'nowrap' },
-  shortcut: { fontSize: 7, color: '#555', lineHeight: 1 },
+  icon: { fontSize: 18, lineHeight: 1.1 },
+  label: { fontSize: 11, lineHeight: 1.2, whiteSpace: 'nowrap', fontWeight: 500 },
+  shortcut: { fontSize: 9, color: '#555', lineHeight: 1 },
 }

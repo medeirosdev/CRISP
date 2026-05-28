@@ -25,11 +25,14 @@ export class OpticalTable {
   private lastPan = { x: 0, y: 0 }
 
   private dragId: string | null = null
+  private dragAnnotationId: string | null = null
   private onMove?: (id: string, xMm: number, yMm: number) => void
+  private onAnnotationMove?: (id: string, xMm: number, yMm: number) => void
   private onClick?: (id: string | null) => void
   private onAnnotationAdd?: (x: number, y: number) => void
   private onAnnotationArrow?: (x1: number, y1: number, x2: number, y2: number) => void
   private selectedId: string | null = null
+  _lastAnnotations: Annotation[] = []
 
   private activeTool: ToolMode = 'select'
   private snapEnabled = true
@@ -60,11 +63,13 @@ export class OpticalTable {
     onClick: (id: string | null) => void,
     onAnnotationAdd?: (x: number, y: number) => void,
     onAnnotationArrow?: (x1: number, y1: number, x2: number, y2: number) => void,
+    onAnnotationMove?: (id: string, xMm: number, yMm: number) => void,
   ): void {
     this.onMove = onMove
     this.onClick = onClick
     this.onAnnotationAdd = onAnnotationAdd
     this.onAnnotationArrow = onAnnotationArrow
+    this.onAnnotationMove = onAnnotationMove
   }
 
   setSelectedId(id: string | null): void {
@@ -170,6 +175,13 @@ export class OpticalTable {
     return null
   }
 
+  private _findAnnotationAt(mm: { x: number; y: number }): string | null {
+    for (const a of [...this._lastAnnotations].reverse()) {
+      if (Math.hypot(a.x - mm.x, a.y - mm.y) < 8) return a.id
+    }
+    return null
+  }
+
   private _setupEvents(): void {
     const canvas = this.canvas
     const { signal } = this.abortController
@@ -206,7 +218,12 @@ export class OpticalTable {
         return
       }
 
-      // select mode
+      // select mode — verifica anotações primeiro, depois componentes
+      const annId = this._findAnnotationAt(mm)
+      if (annId) {
+        this.dragAnnotationId = annId
+        return
+      }
       this._lastComponents = this._lastComponents ?? []
       const id = this._findAt(mm, this._lastComponents)
       if (id) {
@@ -230,6 +247,11 @@ export class OpticalTable {
       }
       if (this.activeTool === 'annotate-arrow' && this.annotateArrowStart) {
         this.annotateArrowCursor = this.screenToMm(e.clientX, e.clientY)
+        return
+      }
+      if (this.dragAnnotationId) {
+        const mm = this.screenToMm(e.clientX, e.clientY)
+        this.onAnnotationMove?.(this.dragAnnotationId, mm.x, mm.y)
         return
       }
       if (this.dragId) {
@@ -256,6 +278,7 @@ export class OpticalTable {
         return
       }
       this.dragId = null
+      this.dragAnnotationId = null
       this.isPanning = false
       if (this.activeTool === 'pan') canvas.style.cursor = 'grab'
     }, { signal })

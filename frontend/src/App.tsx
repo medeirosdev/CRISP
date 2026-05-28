@@ -9,6 +9,7 @@ import { PropsPanel } from './components/PropsPanel'
 import { ValidationPanel } from './components/ValidationPanel'
 import { Toolbar } from './components/Toolbar'
 import { FloatingToolbar } from './components/FloatingToolbar'
+import { AnnotationModal } from './components/AnnotationModal'
 import { computeLocalPhysics, nFromTemp } from './utils/physics'
 
 const TABLE_CONFIG = {
@@ -41,6 +42,7 @@ export default function App() {
   const dragStartX = useRef(0)
   const dragStartW = useRef(0)
   const [lightTheme, setLightTheme] = useState(false)
+  const [annotModal, setAnnotModal] = useState<{ open: boolean; x: number; y: number }>({ open: false, x: 0, y: 0 })
 
   // Use refs so the RAF loop never needs to restart on scene changes
   const sceneRef = useRef(useSceneStore.getState().scene)
@@ -70,19 +72,13 @@ export default function App() {
     table.setCallbacks(
       (id, xMm, yMm) => updateComponent(id, { position: { xMm, yMm } }),
       (id) => selectComponent(id),
-      (x, y) => {
-        const text = window.prompt('Texto da anotação:')
-        if (text?.trim()) {
-          useSceneStore.getState().addAnnotation({
-            id: `ann-${Date.now()}`, type: 'text', x, y, text: text.trim(), color: '#ffe066',
-          })
-        }
-      },
+      (x, y) => { setAnnotModal({ open: true, x, y }) },
       (x1, y1, x2, y2) => {
         useSceneStore.getState().addAnnotation({
           id: `ann-${Date.now()}`, type: 'arrow', x: x1, y: y1, toX: x2, toY: y2, color: '#ffe066',
         })
       },
+      (id, xMm, yMm) => useSceneStore.getState().moveAnnotation(id, xMm, yMm),
     )
     tableRef.current = table
     return () => { table.destroy() }
@@ -102,6 +98,7 @@ export default function App() {
         const hasLaser = sceneRef.current.components.some(c => c.type === 'source_laser')
         tableRef.current.setHasLaser(hasLaser)
         tableRef.current._lastComponents = sceneRef.current.components
+        tableRef.current._lastAnnotations = annotationsRef.current
         tableRef.current.setSelectedId(selectedIdRef.current)
         tableRef.current.render(sceneRef.current.components, annotationsRef.current)
       }
@@ -189,6 +186,19 @@ export default function App() {
   const handleUndoAnnotation = useCallback(() => removeLastAnnotation(), [])
   const handleClearAnnotations = useCallback(() => clearAnnotations(), [])
 
+  const handleAnnotConfirm = useCallback((text: string) => {
+    useSceneStore.getState().addAnnotation({
+      id: `ann-${Date.now()}`, type: 'text',
+      x: annotModal.x, y: annotModal.y,
+      text, color: '#ffe066',
+    })
+    setAnnotModal(m => ({ ...m, open: false }))
+  }, [annotModal.x, annotModal.y])
+
+  const handleAnnotCancel = useCallback(() => {
+    setAnnotModal(m => ({ ...m, open: false }))
+  }, [])
+
   return (
     <div style={styles.app}>
       {/* Header */}
@@ -247,6 +257,12 @@ export default function App() {
         onThemeToggle={() => setLightTheme(v => !v)}
         onClearAnnotations={handleClearAnnotations}
         onUndoAnnotation={handleUndoAnnotation}
+      />
+
+      <AnnotationModal
+        isOpen={annotModal.open}
+        onConfirm={handleAnnotConfirm}
+        onCancel={handleAnnotCancel}
       />
     </div>
   )
