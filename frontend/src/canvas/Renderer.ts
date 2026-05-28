@@ -20,6 +20,7 @@ const ICONS: Record<string, string> = {
 }
 
 export class Renderer {
+  lightTheme: boolean = false
   constructor(private ctx: CanvasRenderingContext2D) {}
 
   drawRays(rays: Ray[]): void {
@@ -177,8 +178,8 @@ export class Renderer {
         const d = Math.hypot(b.xMm - a.xMm, b.yMm - a.yMm)
         if (d > 250) continue
         const alpha = Math.max(0.08, 0.4 * (1 - d / 250))
-        ctx.strokeStyle = `rgba(120, 190, 255, ${alpha})`
-        ctx.fillStyle   = `rgba(160, 210, 255, ${Math.min(alpha * 1.6, 0.55)})`
+        ctx.strokeStyle = this.lightTheme ? `rgba(200, 30, 80, ${alpha * 1.5})` : `rgba(120, 190, 255, ${alpha})`
+        ctx.fillStyle   = this.lightTheme ? `rgba(200, 30, 80, ${Math.min(alpha * 2, 0.8)})` : `rgba(160, 210, 255, ${Math.min(alpha * 1.6, 0.55)})`
         ctx.beginPath()
         ctx.moveTo(a.xMm, a.yMm)
         ctx.lineTo(b.xMm, b.yMm)
@@ -193,7 +194,8 @@ export class Renderer {
     const { ctx } = this
     ctx.save()
 
-    ctx.fillStyle = '#ffe066'
+    const color = this.lightTheme ? '#d93654' : '#ffe066'
+    ctx.fillStyle = color
     ctx.beginPath()
     ctx.arc(a.x, a.y, 1.8, 0, Math.PI * 2)
     ctx.fill()
@@ -203,7 +205,7 @@ export class Renderer {
       ctx.setLineDash([1.2, 1.2])
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
-      ctx.strokeStyle = '#ffe066'
+      ctx.strokeStyle = color
       ctx.lineWidth = 0.45
       ctx.stroke()
       ctx.setLineDash([])
@@ -220,12 +222,12 @@ export class Renderer {
       ctx.font = 'bold 4.5px sans-serif'
       const label = `${d.toFixed(1)} mm`
       const tw = ctx.measureText(label).width
-      ctx.fillStyle = 'rgba(20,20,40,0.75)'
+      ctx.fillStyle = this.lightTheme ? 'rgba(255, 255, 255, 0.85)' : 'rgba(20,20,40,0.75)'
       ctx.beginPath()
       ctx.roundRect(mx - tw / 2 - 1.5, my - 7, tw + 3, 5.5, 1)
       ctx.fill()
 
-      ctx.fillStyle = '#ffe066'
+      ctx.fillStyle = color
       ctx.textAlign = 'center'
       ctx.textBaseline = 'bottom'
       ctx.fillText(label, mx, my - 2)
@@ -242,8 +244,8 @@ export class Renderer {
     const tw = ctx.measureText(text).width
     const pad = 1.4, ph = size + 1.4
     const rx = x - tw / 2 - pad, ry = y - ph / 2, rw = tw + pad * 2, rh = ph
-    // fundo com leve tint azul para destacar do canvas preto
-    ctx.fillStyle = 'rgba(18, 26, 58, 0.93)'
+    // fundo com leve tint azul para destacar do canvas preto ou branco no lightTheme
+    ctx.fillStyle = this.lightTheme ? 'rgba(250, 250, 250, 0.93)' : 'rgba(18, 26, 58, 0.93)'
     ctx.beginPath()
     if (typeof (ctx as unknown as { roundRect?: unknown }).roundRect === 'function') {
       ctx.roundRect(rx, ry, rw, rh, 1.2)
@@ -349,8 +351,8 @@ export class Renderer {
     const infoX = sx - px * gap   // lado oposto a px (direita)
     const infoY = sy - py * gap
 
-    this._pill(infoX, infoY - 3.5, `Res: ${resUm.toFixed(2)} µm`, 'rgba(255,224,102,0.90)', 2.6)
-    this._pill(infoX, infoY + 0.5, `DoF: ${dofUm.toFixed(1)} µm`, 'rgba(255,200,80,0.75)', 2.6)
+    this._pill(infoX, infoY - 3.5, `Res: ${resUm.toFixed(2)} µm`, this.lightTheme ? '#b82e46' : 'rgba(255,224,102,0.90)', 2.6)
+    this._pill(infoX, infoY + 0.5, `DoF: ${dofUm.toFixed(1)} µm`, this.lightTheme ? '#cc5500' : 'rgba(255,200,80,0.75)', 2.6)
 
     ctx.restore()
   }
@@ -364,13 +366,13 @@ export class Renderer {
     ctx.beginPath()
     ctx.setLineDash([1, 1])
     ctx.moveTo(ax, ay); ctx.lineTo(bx, by)
-    ctx.strokeStyle = 'rgba(255,200,0,0.8)'
+    ctx.strokeStyle = this.lightTheme ? 'rgba(217, 54, 84, 0.8)' : 'rgba(255,200,0,0.8)'
     ctx.lineWidth = 0.3
     ctx.stroke()
     ctx.setLineDash([])
 
     ctx.font = '3px sans-serif'
-    ctx.fillStyle = '#ffe066'
+    ctx.fillStyle = this.lightTheme ? '#d93654' : '#ffe066'
     ctx.textAlign = 'center'
     ctx.fillText(`${d.toFixed(1)} mm`, mx, my - 2)
   }

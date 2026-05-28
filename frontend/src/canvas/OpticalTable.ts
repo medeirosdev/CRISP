@@ -78,6 +78,7 @@ export class OpticalTable {
   setSnapEnabled(v: boolean): void { this.snapEnabled = v }
   setShowRays(v: boolean): void { this.showRays = v }
   setShowDistances(v: boolean): void { this.showDistances = v }
+  setLightTheme(v: boolean): void { this.renderer.lightTheme = v }
 
   fitView(components: Component[]): void {
     if (components.length === 0) return

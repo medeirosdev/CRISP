@@ -172,12 +172,14 @@ export class RayTracer {
   private _reflect(ray: Ray, hit: HitPoint, normalAngle: number, intensity: number): Ray {
     const dx = ray.x2 - ray.x1
     const dy = ray.y2 - ray.y1
+    const len = Math.hypot(dx, dy)
+    const ndx = dx / len, ndy = dy / len   // normalizado, igual ao _transmit
     const nx = Math.cos(normalAngle), ny = Math.sin(normalAngle)
-    const dot = dx * nx + dy * ny
+    const dot = ndx * nx + ndy * ny
     return {
       x1: hit.x, y1: hit.y,
-      x2: hit.x + (dx - 2 * dot * nx) * 200,
-      y2: hit.y + (dy - 2 * dot * ny) * 200,
+      x2: hit.x + (ndx - 2 * dot * nx) * 500,
+      y2: hit.y + (ndy - 2 * dot * ny) * 500,
       wavelengthNm: ray.wavelengthNm,
       intensity: ray.intensity * intensity,
       isReflected: true,

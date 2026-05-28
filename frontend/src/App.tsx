@@ -40,6 +40,7 @@ export default function App() {
   const dragging = useRef<'left' | 'right' | null>(null)
   const dragStartX = useRef(0)
   const dragStartW = useRef(0)
+  const [lightTheme, setLightTheme] = useState(false)
 
   // Use refs so the RAF loop never needs to restart on scene changes
   const sceneRef = useRef(useSceneStore.getState().scene)
@@ -75,6 +76,7 @@ export default function App() {
   useEffect(() => { tableRef.current?.setSnapEnabled(snapEnabled) }, [snapEnabled])
   useEffect(() => { tableRef.current?.setShowRays(showRays) }, [showRays])
   useEffect(() => { tableRef.current?.setShowDistances(showDistances) }, [showDistances])
+  useEffect(() => { tableRef.current?.setLightTheme(lightTheme) }, [lightTheme])
 
   // Animation loop — deps-free, reads from refs
   useEffect(() => {
@@ -186,7 +188,7 @@ export default function App() {
         />
 
         {/* Main canvas */}
-        <div style={styles.canvasArea}>
+        <div style={{ ...styles.canvasArea, background: lightTheme ? '#ffffff' : '#0d0d1a' }}>
           <canvas
             ref={canvasRef}
             style={styles.canvas}
@@ -219,6 +221,8 @@ export default function App() {
         onRaysToggle={() => setShowRays(v => !v)}
         showDistances={showDistances}
         onDistancesToggle={() => setShowDistances(v => !v)}
+        lightTheme={lightTheme}
+        onThemeToggle={() => setLightTheme(v => !v)}
       />
     </div>
   )

@@ -12,6 +12,8 @@ interface Props {
   onRaysToggle: () => void
   showDistances: boolean
   onDistancesToggle: () => void
+  lightTheme: boolean
+  onThemeToggle: () => void
 }
 
 const TOOLS: { id: ToolMode; label: string; icon: string; shortcut: string; title: string }[] = [
@@ -23,6 +25,7 @@ const TOOLS: { id: ToolMode; label: string; icon: string; shortcut: string; titl
 export function FloatingToolbar({
   activeTool, onTool, onFitView, onDelete,
   snapEnabled, onSnapToggle, showRays, onRaysToggle, showDistances, onDistancesToggle,
+  lightTheme, onThemeToggle,
 }: Props) {
   const [pos, setPos] = useState({ x: 0, y: 0, initialized: false })
   const dragging = useRef(false)
@@ -64,6 +67,7 @@ export function FloatingToolbar({
         case 'p': onTool('pan'); break
         case 'm': onTool('measure'); break
         case 'd': onDistancesToggle(); break
+        case 't': onThemeToggle(); break
         case 'f': onFitView(); break
         case 'delete': case 'backspace': onDelete(); break
       }
@@ -151,6 +155,15 @@ export function FloatingToolbar({
       >
         <span style={styles.icon}>#</span>
         <span style={styles.label}>Snap</span>
+      </button>
+      <button
+        style={{ ...styles.btn, ...(lightTheme ? styles.btnToggleOn : {}) }}
+        onClick={onThemeToggle}
+        title="Alternar cor de fundo da grade (T)"
+      >
+        <span style={styles.icon}>◐</span>
+        <span style={styles.label}>Fundo</span>
+        <span style={styles.shortcut}>T</span>
       </button>
     </div>
   )
