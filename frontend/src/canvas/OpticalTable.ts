@@ -1,9 +1,9 @@
-import type { Component } from '../types/scene'
+import type { Component, Annotation } from '../types/scene'
 import { RayTracer } from './RayTracer'
 import { Renderer } from './Renderer'
 import { snapToGrid } from '../utils/units'
 
-export type ToolMode = 'select' | 'pan' | 'measure'
+export type ToolMode = 'select' | 'pan' | 'measure' | 'annotate-text' | 'annotate-arrow'
 
 export interface TableConfig {
   widthMm: number
@@ -27,15 +27,20 @@ export class OpticalTable {
   private dragId: string | null = null
   private onMove?: (id: string, xMm: number, yMm: number) => void
   private onClick?: (id: string | null) => void
+  private onAnnotationAdd?: (x: number, y: number) => void
+  private onAnnotationArrow?: (x1: number, y1: number, x2: number, y2: number) => void
   private selectedId: string | null = null
 
   private activeTool: ToolMode = 'select'
   private snapEnabled = true
   private showRays = true
   private showDistances = false
+  private hasLaser = false
   private measureA: { x: number; y: number } | null = null
   private measureB: { x: number; y: number } | null = null
   private measureCursor: { x: number; y: number } | null = null
+  private annotateArrowStart: { x: number; y: number } | null = null
+  private annotateArrowCursor: { x: number; y: number } | null = null
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -52,10 +57,14 @@ export class OpticalTable {
 
   setCallbacks(
     onMove: (id: string, xMm: number, yMm: number) => void,
-    onClick: (id: string | null) => void
+    onClick: (id: string | null) => void,
+    onAnnotationAdd?: (x: number, y: number) => void,
+    onAnnotationArrow?: (x1: number, y1: number, x2: number, y2: number) => void,
   ): void {
     this.onMove = onMove
     this.onClick = onClick
+    this.onAnnotationAdd = onAnnotationAdd
+    this.onAnnotationArrow = onAnnotationArrow
   }
 
   setSelectedId(id: string | null): void {
@@ -66,18 +75,21 @@ export class OpticalTable {
     this.activeTool = tool
     const cursors: Record<ToolMode, string> = {
       select: 'default', pan: 'grab', measure: 'crosshair',
+      'annotate-text': 'text', 'annotate-arrow': 'crosshair',
     }
     this.canvas.style.cursor = cursors[tool]
     if (tool !== 'measure') {
-      this.measureA = null
-      this.measureB = null
-      this.measureCursor = null
+      this.measureA = null; this.measureB = null; this.measureCursor = null
+    }
+    if (!tool.startsWith('annotate')) {
+      this.annotateArrowStart = null; this.annotateArrowCursor = null
     }
   }
 
   setSnapEnabled(v: boolean): void { this.snapEnabled = v }
   setShowRays(v: boolean): void { this.showRays = v }
   setShowDistances(v: boolean): void { this.showDistances = v }
+  setHasLaser(v: boolean): void { this.hasLaser = v }
   setLightTheme(v: boolean): void { this.renderer.lightTheme = v }
 
   fitView(components: Component[]): void {
@@ -102,7 +114,7 @@ export class OpticalTable {
     this.offsetY = this.canvas.height / 2 - cy * this.scale * this.config.pxPerMm
   }
 
-  render(components: Component[]): void {
+  render(components: Component[], annotations: Annotation[] = []): void {
     const { ctx, canvas, config, scale, offsetX, offsetY } = this
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
@@ -111,6 +123,10 @@ export class OpticalTable {
     ctx.scale(scale * config.pxPerMm, scale * config.pxPerMm)
 
     this.renderer.drawGrid(config.widthMm, config.heightMm, config.gridSpacingMm)
+
+    if (this.hasLaser) {
+      this.renderer.drawSpeckleOverlay(config.widthMm, config.heightMm)
+    }
 
     if (this.showRays) {
       const rays = this.rayTracer.trace(components)
@@ -123,9 +139,14 @@ export class OpticalTable {
 
     this.renderer.drawObjectiveOverlays(components)
     this.renderer.drawComponents(components, this.selectedId)
+    this.renderer.drawAnnotations(annotations)
 
     if (this.measureA) {
       this.renderer.drawMeasure(this.measureA, this.measureB ?? this.measureCursor)
+    }
+
+    if (this.annotateArrowStart && this.annotateArrowCursor) {
+      this.renderer.drawAnnotationArrowPreview(this.annotateArrowStart, this.annotateArrowCursor)
     }
 
     ctx.restore()
@@ -165,20 +186,23 @@ export class OpticalTable {
 
       if (this.activeTool === 'measure') {
         if (!this.measureA) {
-          // 1º clique — define ponto A, limpa preview
-          this.measureA = mm
-          this.measureB = null
-          this.measureCursor = null
+          this.measureA = mm; this.measureB = null; this.measureCursor = null
         } else if (!this.measureB) {
-          // 2º clique — confirma ponto B, congela a medição
-          this.measureB = mm
-          this.measureCursor = null
+          this.measureB = mm; this.measureCursor = null
         } else {
-          // 3º clique — inicia nova medição
-          this.measureA = mm
-          this.measureB = null
-          this.measureCursor = null
+          this.measureA = mm; this.measureB = null; this.measureCursor = null
         }
+        return
+      }
+
+      if (this.activeTool === 'annotate-text') {
+        this.onAnnotationAdd?.(mm.x, mm.y)
+        return
+      }
+
+      if (this.activeTool === 'annotate-arrow') {
+        this.annotateArrowStart = mm
+        this.annotateArrowCursor = null
         return
       }
 
@@ -204,6 +228,10 @@ export class OpticalTable {
         this.measureCursor = this.screenToMm(e.clientX, e.clientY)
         return
       }
+      if (this.activeTool === 'annotate-arrow' && this.annotateArrowStart) {
+        this.annotateArrowCursor = this.screenToMm(e.clientX, e.clientY)
+        return
+      }
       if (this.dragId) {
         const mm = this.screenToMm(e.clientX, e.clientY)
         const pos = this.snapEnabled
@@ -213,9 +241,19 @@ export class OpticalTable {
       }
     }, { signal })
 
-    canvas.addEventListener('mouseup', () => {
-      if (this.activeTool === 'measure' && this.measureA && this.measureB) {
-        // freeze the measurement — next click will start a new one
+    canvas.addEventListener('mouseup', (e) => {
+      if (this.activeTool === 'annotate-arrow' && this.annotateArrowStart && this.annotateArrowCursor) {
+        const end = this.screenToMm(e.clientX, e.clientY)
+        const d = Math.hypot(end.x - this.annotateArrowStart.x, end.y - this.annotateArrowStart.y)
+        if (d > 2) {
+          this.onAnnotationArrow?.(
+            this.annotateArrowStart.x, this.annotateArrowStart.y,
+            end.x, end.y
+          )
+        }
+        this.annotateArrowStart = null
+        this.annotateArrowCursor = null
+        return
       }
       this.dragId = null
       this.isPanning = false

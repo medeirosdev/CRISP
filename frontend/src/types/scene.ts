@@ -36,6 +36,17 @@ export interface Component {
   thorlabsPn?: string
 }
 
+export interface Annotation {
+  id: string
+  type: 'text' | 'arrow'
+  x: number     // mm
+  y: number     // mm
+  text?: string
+  toX?: number  // mm (apenas para arrows)
+  toY?: number
+  color: string
+}
+
 export interface Scene {
   id: string
   name: string

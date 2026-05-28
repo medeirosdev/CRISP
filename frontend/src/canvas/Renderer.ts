@@ -376,4 +376,82 @@ export class Renderer {
     ctx.textAlign = 'center'
     ctx.fillText(`${d.toFixed(1)} mm`, mx, my - 2)
   }
+
+  // ── Speckle overlay (laser coerente) ──────────────────────────────
+  drawSpeckleOverlay(widthMm: number, heightMm: number): void {
+    const { ctx } = this
+    ctx.save()
+    // Gera padrão de grãos com semente fixa (speckle é estático com laser)
+    let seed = 0x9e3779b9
+    const rand = () => {
+      seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5
+      return ((seed >>> 0) / 0xffffffff)
+    }
+    const grain = 0.7   // tamanho do grão em mm (≈ Airy disk na escala do canvas)
+    const count = Math.floor(widthMm * heightMm * 0.18 / (grain * grain))
+    ctx.fillStyle = this.lightTheme
+      ? 'rgba(80, 40, 0, 0.07)'
+      : 'rgba(210, 190, 160, 0.10)'
+    for (let i = 0; i < count; i++) {
+      const x = rand() * widthMm
+      const y = rand() * heightMm
+      ctx.beginPath()
+      ctx.arc(x, y, grain * 0.45, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    // Label de aviso no canto
+    this._pill(widthMm - 18, 5, 'SPECKLE (laser)', 'rgba(255,140,60,0.90)', 2.4)
+    ctx.restore()
+  }
+
+  // ── Anotações livres ──────────────────────────────────────────────
+  drawAnnotations(annotations: import('../types/scene').Annotation[]): void {
+    const { ctx } = this
+    for (const ann of annotations) {
+      if (ann.type === 'text' && ann.text) {
+        this._pill(ann.x, ann.y, ann.text, ann.color, 3.2)
+      } else if (ann.type === 'arrow' && ann.toX !== undefined && ann.toY !== undefined) {
+        ctx.save()
+        ctx.strokeStyle = ann.color
+        ctx.fillStyle = ann.color
+        ctx.lineWidth = 0.5
+
+        // Linha
+        ctx.beginPath()
+        ctx.moveTo(ann.x, ann.y)
+        ctx.lineTo(ann.toX, ann.toY)
+        ctx.stroke()
+
+        // Ponta da seta
+        const dx = ann.toX - ann.x, dy = ann.toY - ann.y
+        const len = Math.hypot(dx, dy)
+        if (len > 0.5) {
+          const ux = dx / len, uy = dy / len
+          const hw = 2.5, hl = 4
+          ctx.beginPath()
+          ctx.moveTo(ann.toX, ann.toY)
+          ctx.lineTo(ann.toX - ux * hl - uy * hw, ann.toY - uy * hl + ux * hw)
+          ctx.lineTo(ann.toX - ux * hl + uy * hw, ann.toY - uy * hl - ux * hw)
+          ctx.closePath()
+          ctx.fill()
+        }
+        ctx.restore()
+      }
+    }
+  }
+
+  // Preview de seta durante drag de anotação
+  drawAnnotationArrowPreview(from: { x: number; y: number }, to: { x: number; y: number }): void {
+    const { ctx } = this
+    ctx.save()
+    ctx.setLineDash([1.5, 1.5])
+    ctx.strokeStyle = 'rgba(255,220,80,0.8)'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    ctx.moveTo(from.x, from.y)
+    ctx.lineTo(to.x, to.y)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.restore()
+  }
 }

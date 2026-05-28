@@ -1,10 +1,12 @@
 import React from 'react'
 import { useSceneStore } from '../store/sceneStore'
+import { nFromTemp, phaseLabel } from '../utils/physics'
 import type { CorrectionType } from '../types/scene'
 
 export function PropsPanel() {
-  const { scene, selectedId, updateComponent, removeComponent, dTargetNm, setDTarget } = useSceneStore()
+  const { scene, selectedId, updateComponent, removeComponent, dTargetNm, setDTarget, nIceTempK, setNIceTempK } = useSceneStore()
   const comp = scene.components.find(c => c.id === selectedId)
+  const n2 = nFromTemp(nIceTempK)
 
   // Métricas derivadas da objetiva (exibidas como info, não editável)
   const objMetrics = comp?.type === 'objective' ? (() => {
@@ -22,9 +24,47 @@ export function PropsPanel() {
     }
   })() : null
 
+  const tempColor = nIceTempK <= 130 ? '#7ec8f0'
+    : nIceTempK <= 150 ? '#f5a623'
+    : nIceTempK <= 273 ? '#aaa'
+    : '#4a90d9'
+
   return (
     <div style={styles.panel}>
-      <div style={styles.title}>PROPRIEDADES</div>
+      {/* ── Físico global ── */}
+      <div style={styles.title}>FÍSICO</div>
+
+      <div style={styles.row}>
+        <label style={styles.label}>Temperatura (K)</label>
+        <span style={{ fontSize: 10, color: tempColor, fontWeight: 700 }}>{nIceTempK} K</span>
+      </div>
+      <input
+        type="range" min={77} max={300} step={1}
+        value={nIceTempK}
+        onChange={e => setNIceTempK(Number(e.target.value))}
+        style={{ width: '100%', marginBottom: 2, accentColor: tempColor }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ fontSize: 8, color: '#555' }}>77 K</span>
+        <span style={{ fontSize: 9, color: tempColor }}>{phaseLabel(nIceTempK)}</span>
+        <span style={{ fontSize: 8, color: '#555' }}>300 K</span>
+      </div>
+      <div style={styles.row}>
+        <span style={{ fontSize: 9, color: '#777' }}>n₂ (Kofman 2019)</span>
+        <span style={{ fontSize: 10, color: '#ffe066', fontWeight: 700 }}>{n2.toFixed(4)}</span>
+      </div>
+      {nIceTempK > 150 && nIceTempK <= 273 && (
+        <div style={{ fontSize: 8, color: '#f5a623', marginBottom: 4 }}>
+          Atenção: acima de 150 K o gelo devitrifica
+        </div>
+      )}
+      {nIceTempK > 273 && (
+        <div style={{ fontSize: 8, color: '#4a90d9', marginBottom: 4 }}>
+          Água líquida: n₂ = 1.333, curva r(d,λ) desloca
+        </div>
+      )}
+
+      <div style={{ ...styles.title, marginTop: 8 }}>PROPRIEDADES</div>
 
       <div style={styles.row}>
         <label style={styles.label}>Espessura alvo (nm)</label>

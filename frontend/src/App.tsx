@@ -9,7 +9,7 @@ import { PropsPanel } from './components/PropsPanel'
 import { ValidationPanel } from './components/ValidationPanel'
 import { Toolbar } from './components/Toolbar'
 import { FloatingToolbar } from './components/FloatingToolbar'
-import { computeLocalPhysics } from './utils/physics'
+import { computeLocalPhysics, nFromTemp } from './utils/physics'
 
 const TABLE_CONFIG = {
   widthMm: 600,
@@ -47,13 +47,17 @@ export default function App() {
   const selectedIdRef = useRef(useSceneStore.getState().selectedId)
 
   const {
-    scene, physics, selectedId, dTargetNm, sourceType,
+    scene, physics, selectedId, dTargetNm, sourceType, nIceTempK,
+    annotations, removeLastAnnotation, clearAnnotations,
     updateComponent, selectComponent, setPhysics,
   } = useSceneStore()
+
+  const annotationsRef = useRef(annotations)
 
   // Keep refs in sync
   useEffect(() => { sceneRef.current = scene }, [scene])
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
+  useEffect(() => { annotationsRef.current = annotations }, [annotations])
 
   // Init canvas — runs once
   useEffect(() => {
@@ -65,7 +69,20 @@ export default function App() {
     const table = new OpticalTable(canvas, TABLE_CONFIG)
     table.setCallbacks(
       (id, xMm, yMm) => updateComponent(id, { position: { xMm, yMm } }),
-      (id) => selectComponent(id)
+      (id) => selectComponent(id),
+      (x, y) => {
+        const text = window.prompt('Texto da anotação:')
+        if (text?.trim()) {
+          useSceneStore.getState().addAnnotation({
+            id: `ann-${Date.now()}`, type: 'text', x, y, text: text.trim(), color: '#ffe066',
+          })
+        }
+      },
+      (x1, y1, x2, y2) => {
+        useSceneStore.getState().addAnnotation({
+          id: `ann-${Date.now()}`, type: 'arrow', x: x1, y: y1, toX: x2, toY: y2, color: '#ffe066',
+        })
+      },
     )
     tableRef.current = table
     return () => { table.destroy() }
@@ -82,9 +99,11 @@ export default function App() {
   useEffect(() => {
     const loop = () => {
       if (tableRef.current) {
+        const hasLaser = sceneRef.current.components.some(c => c.type === 'source_laser')
+        tableRef.current.setHasLaser(hasLaser)
         tableRef.current._lastComponents = sceneRef.current.components
         tableRef.current.setSelectedId(selectedIdRef.current)
-        tableRef.current.render(sceneRef.current.components)
+        tableRef.current.render(sceneRef.current.components, annotationsRef.current)
       }
       animRef.current = requestAnimationFrame(loop)
     }
@@ -111,7 +130,7 @@ export default function App() {
     const fwhm = source.fwhmNm ?? [6, 9, 15]
 
     // Immediate local computation — no backend needed
-    setPhysics(computeLocalPhysics(wavelengths, dTargetNm))
+    setPhysics(computeLocalPhysics(wavelengths, dTargetNm, 300, nFromTemp(nIceTempK)))
 
     // Async backend computation for coherence, validation, spectral integration
     wsClient.requestUpdate(scene, {
@@ -120,7 +139,7 @@ export default function App() {
       dTargetNm,
       sourceType,
     })
-  }, [scene, dTargetNm, sourceType])
+  }, [scene, dTargetNm, sourceType, nIceTempK])
 
   // Resize handle drag
   const onMouseDownRight = useCallback((e: React.MouseEvent) => {
@@ -166,6 +185,9 @@ export default function App() {
     const id = selectedIdRef.current
     if (id) useSceneStore.getState().removeComponent(id)
   }, [])
+
+  const handleUndoAnnotation = useCallback(() => removeLastAnnotation(), [])
+  const handleClearAnnotations = useCallback(() => clearAnnotations(), [])
 
   return (
     <div style={styles.app}>
@@ -223,6 +245,8 @@ export default function App() {
         onDistancesToggle={() => setShowDistances(v => !v)}
         lightTheme={lightTheme}
         onThemeToggle={() => setLightTheme(v => !v)}
+        onClearAnnotations={handleClearAnnotations}
+        onUndoAnnotation={handleUndoAnnotation}
       />
     </div>
   )

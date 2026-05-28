@@ -14,19 +14,24 @@ interface Props {
   onDistancesToggle: () => void
   lightTheme: boolean
   onThemeToggle: () => void
+  onClearAnnotations: () => void
+  onUndoAnnotation: () => void
 }
 
 const TOOLS: { id: ToolMode; label: string; icon: string; shortcut: string; title: string }[] = [
-  { id: 'select',  icon: '↖', label: 'Selecionar', shortcut: 'S', title: 'Selecionar / mover componentes (S)' },
-  { id: 'pan',     icon: '✥', label: 'Mover mapa', shortcut: 'P', title: 'Arrastar o mapa (P)' },
-  { id: 'measure', icon: '⟺', label: 'Medir',      shortcut: 'M', title: '1º clique = ponto A · 2º clique = ponto B · 3º = nova medição · Esc cancela (M)' },
+  { id: 'select',         icon: '↖',  label: 'Selecionar', shortcut: 'S', title: 'Selecionar / mover componentes (S)' },
+  { id: 'pan',            icon: '✥',  label: 'Mover mapa', shortcut: 'P', title: 'Arrastar o mapa (P)' },
+  { id: 'measure',        icon: '⟺',  label: 'Medir',      shortcut: 'M', title: '1º clique = ponto A · 2º clique = ponto B · 3º = nova medição · Esc cancela (M)' },
+  { id: 'annotate-text',  icon: 'T+', label: 'Texto',      shortcut: 'A', title: 'Clique para adicionar anotação de texto (A)' },
+  { id: 'annotate-arrow', icon: '↗',  label: 'Seta',       shortcut: '',  title: 'Arraste para desenhar uma seta' },
 ]
 
 export function FloatingToolbar({
   activeTool, onTool, onFitView, onDelete,
   snapEnabled, onSnapToggle, showRays, onRaysToggle, showDistances, onDistancesToggle,
-  lightTheme, onThemeToggle,
+  lightTheme, onThemeToggle, onClearAnnotations, onUndoAnnotation,
 }: Props) {
+  const annotating = activeTool === 'annotate-text' || activeTool === 'annotate-arrow'
   const [pos, setPos] = useState({ x: 0, y: 0, initialized: false })
   const dragging = useRef(false)
   const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 })
@@ -66,9 +71,11 @@ export function FloatingToolbar({
         case 's': onTool('select'); break
         case 'p': onTool('pan'); break
         case 'm': onTool('measure'); break
+        case 'a': onTool('annotate-text'); break
         case 'd': onDistancesToggle(); break
         case 't': onThemeToggle(); break
         case 'f': onFitView(); break
+        case 'z': onUndoAnnotation(); break
         case 'delete': case 'backspace': onDelete(); break
       }
     }
@@ -127,6 +134,20 @@ export function FloatingToolbar({
         <span style={styles.label}>Deletar</span>
         <span style={styles.shortcut}>Del</span>
       </button>
+
+      {/* Annotation actions — só visíveis quando ferramenta de anotação ativa */}
+      {annotating && (<>
+        <div style={styles.separator} />
+        <button style={styles.btn} onClick={onUndoAnnotation} title="Desfazer última anotação (Z)">
+          <span style={styles.icon}>↩</span>
+          <span style={styles.label}>Desfazer</span>
+          <span style={styles.shortcut}>Z</span>
+        </button>
+        <button style={{ ...styles.btn, ...styles.btnDanger }} onClick={onClearAnnotations} title="Limpar todas as anotações">
+          <span style={styles.icon}>⌫</span>
+          <span style={styles.label}>Limpar</span>
+        </button>
+      </>)}
 
       <div style={styles.separator} />
 

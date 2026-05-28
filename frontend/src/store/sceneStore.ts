@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Scene, Component } from '../types/scene'
+import type { Scene, Component, Annotation } from '../types/scene'
 import type { PhysicsResponse } from '../types/physics'
 
 interface SceneStore {
@@ -8,6 +8,8 @@ interface SceneStore {
   selectedId: string | null
   dTargetNm: number
   sourceType: 'led' | 'laser'
+  nIceTempK: number
+  annotations: Annotation[]
 
   setScene: (scene: Scene) => void
   addComponent: (c: Component) => void
@@ -17,6 +19,10 @@ interface SceneStore {
   setPhysics: (p: PhysicsResponse) => void
   setDTarget: (d: number) => void
   setSourceType: (t: 'led' | 'laser') => void
+  setNIceTempK: (t: number) => void
+  addAnnotation: (a: Annotation) => void
+  removeLastAnnotation: () => void
+  clearAnnotations: () => void
 }
 
 export const useSceneStore = create<SceneStore>((set) => ({
@@ -33,6 +39,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
   selectedId: null,
   dTargetNm: 80,
   sourceType: 'led',
+  nIceTempK: 77,
+  annotations: [],
 
   setScene: (scene) => set({ scene }),
 
@@ -61,4 +69,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
   setPhysics: (physics) => set({ physics }),
   setDTarget: (dTargetNm) => set({ dTargetNm }),
   setSourceType: (sourceType) => set({ sourceType }),
+  setNIceTempK: (nIceTempK) => set({ nIceTempK }),
+  addAnnotation: (a) => set((s) => ({ annotations: [...s.annotations, a] })),
+  removeLastAnnotation: () => set((s) => ({ annotations: s.annotations.slice(0, -1) })),
+  clearAnnotations: () => set({ annotations: [] }),
 }))
